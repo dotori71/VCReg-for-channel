@@ -1,15 +1,7 @@
-from pathlib import Path
 import argparse
-import json
-import math
-import os
-import sys
-import time
-
 import torch
 import torch.nn.functional as F
-from torch import nn, optim
-import torch.distributed as dist
+from torch import nn
 
 
 class VCReg(nn.Module):
@@ -18,7 +10,6 @@ class VCReg(nn.Module):
         self.args = args
     
     def forward(self, y):
-        print("original y",y.shape)
         # change shape [b, c, h, w]  to [b, c, hw]
         y = y.view(y.size(0), y.size(1), -1)
 
@@ -38,32 +29,32 @@ class VCReg(nn.Module):
 
 
         if self.args.cov_use:
-            y_mean=get_batch_mean_y(y,self.args.batch_size) # y bar
-            cov_y = get_cov_matrix_y(y,y_mean,self.args.batch_size)
-            cov_loss = off_diagonal(cov_y).pow_(2).sum().div(y.size(1))
+            y_mean= self.get_batch_mean_y(y,self.args.batch_size) # y bar
+            cov_y = self.get_cov_matrix_y(y,y_mean,self.args.batch_size)
+            cov_loss = self.off_diagonal(cov_y).pow_(2).sum().div(y.size(1))
 
         loss = self.args.std_coeff * std_loss + self.args.cov_coeff * cov_loss    
         print(loss)
         return loss
     
-def get_batch_mean_y(y,batch_size):
-    yi_sum=0
-    for i in range(batch_size):
-        yi_sum=yi_sum+y[i]
-    y_mean=yi_sum/batch_size
-    return y_mean
+    def get_batch_mean_y(self,y,batch_size):
+        yi_sum=0
+        for i in range(batch_size):
+            yi_sum=yi_sum+y[i]
+        y_mean=yi_sum/batch_size
+        return y_mean
 
-def get_cov_matrix_y(y,y_mean,batch_size):
-    cov_sum=0
-    for i in range(batch_size):
-        cov_sum=cov_sum+((y[i]-y_mean)@((y[i]-y_mean).T))
-    cov_y=cov_sum/(batch_size-1)
-    return cov_y
+    def get_cov_matrix_y(self,y,y_mean,batch_size):
+        cov_sum=0
+        for i in range(batch_size):
+            cov_sum=cov_sum+((y[i]-y_mean)@((y[i]-y_mean).T))
+        cov_y=cov_sum/(batch_size-1)
+        return cov_y
 
-def off_diagonal(x):
-    n, m = x.shape
-    assert n == m
-    return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
+    def off_diagonal(self,x):
+        n, m = x.shape
+        assert n == m
+        return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
 
 
 def get_arguments():
@@ -86,9 +77,7 @@ def get_arguments():
 
 
 def main(args):
-    print(args)
     #Namespace(input_shape=[3, 224, 224], batch_size=16, std_coeff=25.0, cov_coeff=1.0, std_use=False, cov_use=True)
-
     # Create a random tensor with the specified shape and batch size
     y = torch.randn((args.batch_size, *args.input_shape))
     model = VCReg(args)
