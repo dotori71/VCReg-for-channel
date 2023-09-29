@@ -22,9 +22,8 @@ class VCReg(nn.Module):
 
             h_yj_sum=0
             for j in range(y.size(1)):
-                std_yj = torch.mean(torch.sqrt(y_reshape[j].var(dim=0)+ 0.0001))   #var has hw values, need to get mean 
-                #problem: where should i put the mean? before std or after
-                h_yj_sum = h_yj_sum + F.relu(1 - std_yj)
+                std_yj = torch.sqrt(y_reshape[j].var(dim=0)+ 0.0001)   
+                h_yj_sum = h_yj_sum + torch.mean(F.relu(1 - std_yj))   #hinge func has hw values, need to get mean 
             std_loss = h_yj_sum / y.size(1)
 
 
