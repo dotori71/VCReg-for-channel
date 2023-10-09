@@ -29,7 +29,7 @@ class VCReg(nn.Module):
 
         if self.args.cov_use:
             y_mean= self.get_batch_mean_y(y,self.args.batch_size) # y bar
-            cov_y = self.get_cov_matrix_y(y,y_mean,self.args.batch_size)
+            cov_y = self.get_cov_matrix_y(y,y_mean,self.args.batch_size, y.size(2))
             cov_loss = self.off_diagonal(cov_y).pow_(2).sum().div(y.size(1))
 
         loss = self.args.std_coeff * std_loss + self.args.cov_coeff * cov_loss    
@@ -43,11 +43,11 @@ class VCReg(nn.Module):
         y_mean=yi_sum/batch_size
         return y_mean
 
-    def get_cov_matrix_y(self,y,y_mean,batch_size):
+    def get_cov_matrix_y(self,y,y_mean,batch_size,hw):
         cov_sum=0
         for i in range(batch_size):
             cov_sum=cov_sum+((y[i]-y_mean)@((y[i]-y_mean).T))
-        cov_y=cov_sum/(batch_size-1)
+        cov_y=cov_sum/hw/(batch_size-1)
         return cov_y
 
     def off_diagonal(self,x):
