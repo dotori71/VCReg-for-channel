@@ -2,7 +2,7 @@ import argparse
 import torch
 import torch.nn.functional as F
 from torch import nn
-
+import math
 
 class VCReg(nn.Module):
     def __init__(self, args):
@@ -28,14 +28,47 @@ class VCReg(nn.Module):
 
 
         if self.args.cov_use:
-            y_mean= self.get_batch_mean_y(y,self.args.batch_size) # y bar
-            cov_y = self.get_cov_matrix_y(y,y_mean,self.args.batch_size, y.size(2))
-            cov_loss = self.off_diagonal(cov_y).pow_(2).sum().div(y.size(1))
-
+            if self.args.cov_method=="A":
+                y_mean= self.get_batch_mean_y(y,self.args.batch_size) # y bar
+                cov_y = self.get_cov_matrix_y(y,y_mean,self.args.batch_size, y.size(2))
+                cov_loss = self.off_diagonal(cov_y).pow_(2).sum().div(y.size(1))    
+            elif self.args.cov_method=="B":
+                c_yi_sum=0
+                hw=y.size(2)
+                for ii in range(self.args.batch_size):
+                    C_yii=self.one_y_cov_matrix(y[ii])
+                    c_yii=self.one_y_cov(C_yii,hw)
+                    c_yi_sum=c_yi_sum+c_yii
+                cov_loss=c_yi_sum/self.args.batch_size
+                
         loss = self.args.std_coeff * std_loss + self.args.cov_coeff * cov_loss    
         print(loss)
         return loss
+
+
+    def get_one_y_mean_channel(self,yi):
+        ai_sum=0
+        for i in range(yi.size(0)):
+            ai_sum=ai_sum+yi[i]
+        abar=ai_sum/yi.size(0)
+        return abar
+
+    def one_y_cov_matrix(self,yi):
+        ch=yi.size(0)
+        hw=yi.size(1)
+        abar=self.get_one_y_mean_channel(yi)
+        pair_num=math.comb(ch, 2)
+        Cyi_sum=0
+        for i in range(ch):
+            for j in range(i + 1, ch):
+                Cyi_sum=Cyi_sum+((yi[i]-abar)@((yi[j]-abar).T))
+        Cyi=Cyi_sum/hw/pair_num      
+        return Cyi  
     
+    def one_y_cov(self,C_yi,hw):
+        cyi=C_yi.flatten().pow_(2).sum().div(hw)
+        return cyi
+
     def get_batch_mean_y(self,y,batch_size):
         yi_sum=0
         for i in range(batch_size):
@@ -71,7 +104,9 @@ def get_arguments():
                         help='Covariance regularization loss coefficient')
     parser.add_argument("--std_use", action="store_false", help="use variance term or not")# store_true -> false
     parser.add_argument("--cov_use", action="store_false", help="use covariance term or not")# store_false -> true
-
+    parser.add_argument("--cov_method",type=str,default="B",choices=["A", "B"],help="Covariance method (choose between 'A' and 'B')")
+    #A: different channel same position
+    #B: different channel diff position
     return parser
 
 
