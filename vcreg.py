@@ -35,8 +35,9 @@ class VCReg(nn.Module):
             elif self.args.cov_method=="B":
                 c_yi_sum=0
                 hw=y.size(2)
+                y_mean= self.get_batch_mean_y(y,self.args.batch_size) # y bar [c, hw]
                 for ii in range(self.args.batch_size):
-                    C_yii=self.one_y_cov_matrix(y[ii])
+                    C_yii=self.one_y_cov_matrix(y[ii],y_mean)
                     c_yii=self.one_y_cov(C_yii,hw)
                     c_yi_sum=c_yi_sum+c_yii
                 cov_loss=c_yi_sum/self.args.batch_size
@@ -45,23 +46,14 @@ class VCReg(nn.Module):
         print(loss)
         return loss
 
-
-    def get_one_y_mean_channel(self,yi):
-        ai_sum=0
-        for i in range(yi.size(0)):
-            ai_sum=ai_sum+yi[i]
-        abar=ai_sum/yi.size(0)
-        return abar
-
-    def one_y_cov_matrix(self,yi):
+    def one_y_cov_matrix(self,yi,y_mean):
         ch=yi.size(0)
         hw=yi.size(1)
-        abar=self.get_one_y_mean_channel(yi)
         pair_num=math.comb(ch, 2)
         Cyi_sum=0
         for i in range(ch):
             for j in range(i + 1, ch):
-                Cyi_sum=Cyi_sum+((yi[i]-abar)@((yi[j]-abar).T))
+                Cyi_sum=Cyi_sum+((yi[i]-y_mean[i])@((yi[j]-y_mean[j]).T))
         Cyi=Cyi_sum/hw/pair_num      
         return Cyi  
     
@@ -103,7 +95,7 @@ def get_arguments():
     parser.add_argument("--cov_coeff", type=float, default=1.0,
                         help='Covariance regularization loss coefficient')
     parser.add_argument("--std_use", action="store_false", help="use variance term or not")# store_true -> false
-    parser.add_argument("--cov_use", action="store_false", help="use covariance term or not")# store_false -> true
+    parser.add_argument("--cov_use", action="store_true", help="use covariance term or not")# store_false -> true
     parser.add_argument("--cov_method",type=str,default="B",choices=["A", "B"],help="Covariance method (choose between 'A' and 'B')")
     #A: different channel same position
     #B: different channel diff position
