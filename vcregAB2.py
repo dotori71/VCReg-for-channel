@@ -51,7 +51,7 @@ class VCReg(nn.Module):
                 c_yii = self.one_y_cov(C_yii,hw)
                 c_yi_sum=c_yi_sum+c_yii
             cov_loss=c_yi_sum/self.args.batch_size
-            print("2",cov_loss)
+            print("2:",cov_loss)
 
                 
         loss = self.args.std_coeff * std_loss + self.args.cov_coeff * cov_loss    
@@ -84,7 +84,6 @@ class VCReg(nn.Module):
     def one_y_cov_matrix2(self,yi,y_mean):
         ch=yi.size(0)
         hw=yi.size(1)
-        pair_num=math.comb(ch, 2)
         Cyi_sum=0
         for i in range(ch):
             for j in range(ch):
@@ -94,7 +93,7 @@ class VCReg(nn.Module):
                     y1_copy=(yi[i]-y_mean[i]).reshape(hw,1)
                     y2_copy=(yi[j]-y_mean[j]).reshape(1,hw)
                     Cyi_sum=Cyi_sum+(torch.matmul(y1_copy, y2_copy))
-        Cyi=Cyi_sum/hw/pair_num      
+        Cyi=Cyi_sum/hw/(ch-1)    
         return Cyi  
     def get_cov_matrix_y(self,y,y_mean,batch_size,hw):
         cov_sum=0
@@ -112,7 +111,7 @@ class VCReg(nn.Module):
 def get_arguments():
     parser = argparse.ArgumentParser(description="Pretrain a resnet model with VICReg", add_help=False)
     # input shape
-    parser.add_argument("--input_shape", type=str, default=[3,16, 16],
+    parser.add_argument("--input_shape", type=str, default=[20,16, 16],
                         help='after encoding, the shape of each yi ')
     parser.add_argument("--batch-size", type=int, default=16,
                         help='batch size')
