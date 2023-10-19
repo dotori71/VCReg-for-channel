@@ -16,7 +16,6 @@ class VCReg(nn.Module):
         std_loss=0
         cov_loss=0
 
-        # ε=0.0001  γ=1
         if self.args.std_use:
             y_reshape= y.view(y.size(1),y.size(0), y.size(2)) # change shape [b, c, hw]  to [c, b, hw ]
 
@@ -40,7 +39,6 @@ class VCReg(nn.Module):
                     cov_loss = self.off_diagonal(cov_y).pow_(2).sum().div(y.size(1))  
                     print(cov_loss)  
             elif self.args.cov_method=="B":
-                #ch x HW flatten chHW 1d vector 算全部除以(ch-1) 
                 c_yi_sum=0
                 ch=y.size(1)
                 hw=y.size(2)
@@ -124,8 +122,8 @@ def get_arguments():
                         help='Covariance regularization loss coefficient')
     parser.add_argument("--std_use", action="store_true", help="use variance term or not")# store_true -> false
     parser.add_argument("--cov_use", action="store_false", help="use covariance term or not")# store_false -> true
-    parser.add_argument("--cov_method",type=str,default="B",choices=["A", "B"],help="Covariance method (choose between 'A' and 'B')")
-    parser.add_argument("--cov_methodA",type=str,default="1",choices=["1", "2"],help="Covariance method (choose between '1' and '2')")
+    parser.add_argument("--cov_method",type=str,default="A",choices=["A", "B"],help="Covariance method (choose between 'A' and 'B')")
+    parser.add_argument("--cov_methodA",type=str,default="2",choices=["1", "2"],help="Covariance method (choose between '1' and '2')")
     #A: different channel same position
     #B: different channel diff position
     #A1: /HW
@@ -136,9 +134,8 @@ def get_arguments():
 def main(args):
     #Namespace(input_shape=[3, 224, 224], batch_size=16, std_coeff=25.0, cov_coeff=1.0, std_use=False, cov_use=True)
     # Create a random tensor with the specified shape and batch size
-    y = torch.randn((args.batch_size, *args.input_shape))
     file_path = 'fixed_tensor.pt'
-    torch.save(y, file_path)
+    y = torch.load(file_path)
     model = VCReg(args)
     loss = model.forward(y)
 
