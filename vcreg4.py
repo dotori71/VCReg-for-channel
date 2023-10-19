@@ -114,7 +114,7 @@ def get_arguments():
     # input shape
     parser.add_argument("--input_shape", type=str, default=[20,8, 8],
                         help='after encoding, the shape of each yi ')
-    parser.add_argument("--batch-size", type=int, default=5,
+    parser.add_argument("--batch-size", type=int, default=6,
                         help='batch size')
 
     # Loss
@@ -137,6 +137,8 @@ def main(args):
     #Namespace(input_shape=[3, 224, 224], batch_size=16, std_coeff=25.0, cov_coeff=1.0, std_use=False, cov_use=True)
     # Create a random tensor with the specified shape and batch size
     y = torch.randn((args.batch_size, *args.input_shape))
+    file_path = 'fixed_tensor.pt'
+    torch.save(y, file_path)
     model = VCReg(args)
     loss = model.forward(y)
 
