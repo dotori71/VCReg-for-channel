@@ -50,7 +50,11 @@ class VCReg(nn.Module):
                 cov_loss=c_yi_sum/self.args.batch_size
                 print(cov_loss)
             elif self.args.cov_method=="C":
-                cov_loss=self.cov_c(y)
+                co_sum=0
+                for ii in range(self.args.batch_size):
+                    cov_lossii=self.cov_c(y[ii])
+                    co_sum=co_sum+cov_lossii
+                cov_loss=co_sum/(self.args.batch_size-1)/y.size(1)
                 print(cov_loss)
                 
         loss = self.args.std_coeff * std_loss + self.args.cov_coeff * cov_loss    
@@ -63,8 +67,8 @@ class VCReg(nn.Module):
         return torch.exp(-gamma * distance**2)
 
     def cov_c(self,y):
-        ch=y.size(1)
-        hw=y.size(2)
+        ch=y.size(0)
+        hw=y.size(1)
         cov_sum=0
         for i in range(ch):
             for j in range(i+1,ch):
