@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import math
-
+import time
 class VCReg(nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -50,31 +50,51 @@ class VCReg(nn.Module):
                 cov_loss=c_yi_sum/self.args.batch_size
                 print(cov_loss)
             elif self.args.cov_method=="C":
+                start_time = time.time()
+                b=y.size(0)
                 co_sum=0
-                for ii in range(self.args.batch_size):
+                for ii in range(b):
                     cov_lossii=self.cov_c(y[ii])
                     co_sum=co_sum+cov_lossii
-                cov_loss=co_sum/(self.args.batch_size-1)/y.size(1)
-                print(cov_loss)
+                cov_loss=co_sum/(b-1)/y.size(1)
+                #print(cov_loss)
+                end_time = time.time()
+                runtime = end_time - start_time
+                print(f"1forRuntime: {runtime} seconds")
                 
         loss = self.args.std_coeff * std_loss + self.args.cov_coeff * cov_loss    
         print(loss)
         return loss
-
-
+    
     def rbf_kernel(self,x, y, gamma):
-        distance = torch.norm(x - y)  # Euclidean distance
-        return torch.exp(-gamma * distance**2)
+        distance_square = (x - y).pow_(2).sum(dim=1)  # Euclidean distance
+        k=torch.exp(-gamma * distance_square)
+        k=k.sum()-1
+        return k
 
     def cov_c(self,y):
         ch=y.size(0)
         hw=y.size(1)
         cov_sum=0
         for i in range(ch):
-            for j in range(i+1,ch):
-                c_ch_pair=self.rbf_kernel(y[i],y[j],0.1)
-                cov_sum=cov_sum+c_ch_pair
-        return cov_sum*2  
+            ci_kernels = self.rbf_kernel(y[i].unsqueeze(0), y, 0.01)
+            cov_sum=cov_sum + ci_kernels
+        return cov_sum 
+
+    # def rbf_kernel(self,x, y, gamma):
+    #     distance = torch.norm(x - y)  # Euclidean distance
+    #     k=torch.exp(-gamma * distance**2)
+    #     return k
+
+    # def cov_c(self,y):
+    #     ch=y.size(0)
+    #     hw=y.size(1)
+    #     cov_sum=0
+    #     for i in range(ch):
+    #         for j in range(i+1,ch):
+    #             c_ch_pair=self.rbf_kernel(y[i],y[j],0.01)
+    #             cov_sum=cov_sum+c_ch_pair
+    #     return cov_sum*2  
 
     def get_one_y_mean(self,y,batch_size):
         average_channel = torch.mean(y[:, :, :], dim=2)
@@ -137,9 +157,9 @@ class VCReg(nn.Module):
 def get_arguments():
     parser = argparse.ArgumentParser(description="Pretrain a resnet model with VICReg", add_help=False)
     # input shape
-    parser.add_argument("--input_shape", type=str, default=[5,4,4],
+    parser.add_argument("--input_shape", type=str, default=[4,2,2],
                         help='after encoding, the shape of each yi ')
-    parser.add_argument("--batch-size", type=int, default=6,
+    parser.add_argument("--batch-size", type=int, default=3,
                         help='batch size')
 
     # Loss
@@ -150,7 +170,7 @@ def get_arguments():
     parser.add_argument("--std_use", action="store_true", help="use variance term or not")# store_true -> false
     parser.add_argument("--cov_use", action="store_false", help="use covariance term or not")# store_false -> true
     parser.add_argument("--cov_method",type=str,default="C",choices=["A", "B","C"],help="Covariance method (choose between 'A' and 'B')")
-    parser.add_argument("--cov_methodA",type=str,default="1",choices=["1", "2"],help="Covariance method (choose between '1' and '2')")
+    parser.add_argument("--cov_methodA",type=str,default="2",choices=["1", "2"],help="Covariance method (choose between '1' and '2')")
     #A: different channel same position(LINEAR)
     #B: different channel diff position(LINEAR)
     #C: different channel              (NON-LINEAR)
@@ -160,11 +180,15 @@ def get_arguments():
 
 
 def main(args):
-    #Namespace(input_shape=[3, 224, 224], batch_size=16, std_coeff=25.0, cov_coeff=1.0, std_use=False, cov_use=True)
+    #Namespace(input_shape=[320, 16, 16], batch_size=4, std_coeff=25.0, cov_coeff=1.0, std_use=False, cov_use=True)
     # Create a random tensor with the specified shape and batch size
-    file_path = 'fixed_tensor.pt'
-    # y = torch.load(file_path)
-    y = torch.randn((args.batch_size, *args.input_shape))
+    # int_tensor = torch.randint(low=0, high=255, size=(9,320, 16 ,16), dtype=torch.int32)
+    # # y = torch.randn((args.batch_size, *args.input_shape))
+    # torch.save(int_tensor, 'int2.pth')    
+    file_path = 'int2.pth'
+    y = torch.load(file_path)
+    y = y.to(torch.float32)
+    print(y)
     model = VCReg(args)
     loss = model.forward(y)
 
