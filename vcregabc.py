@@ -50,17 +50,17 @@ class VCReg(nn.Module):
                 cov_loss=c_yi_sum/self.args.batch_size
                 print(cov_loss)
             elif self.args.cov_method=="C":
-                start_time = time.time()
+                # start_time = time.time()
                 b=y.size(0)
                 co_sum=0
                 for ii in range(b):
                     cov_lossii=self.cov_c(y[ii])
                     co_sum=co_sum+cov_lossii
-                cov_loss=co_sum/(b-1)/y.size(1)
+                cov_loss=co_sum/b/y.size(1)/(y.size(1)-1)/y.size(2)
                 #print(cov_loss)
-                end_time = time.time()
-                runtime = end_time - start_time
-                print(f"1forRuntime: {runtime} seconds")
+                # end_time = time.time()
+                # runtime = end_time - start_time
+                # print(f"1forRuntime: {runtime} seconds")
                 
         loss = self.args.std_coeff * std_loss + self.args.cov_coeff * cov_loss    
         print(loss)
